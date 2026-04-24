@@ -9,6 +9,15 @@ import javafx.stage.Stage;
 import java.io.IOException;
 
 public class MainApplication extends Application {
+    public static MainViewModel mainViewModel;
+
+    @Override
+    public void init() throws Exception {
+        super.init();
+
+        mainViewModel = new MainViewModel();
+    }
+
     @Override
     public void start(Stage stage) throws IOException {
         FXMLLoader fxmlLoader = new FXMLLoader(MainApplication.class.getResource("main-view.fxml"));

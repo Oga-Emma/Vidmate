@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.ogaemma.vidmate.ContentController">
+    <center>
+        <VBox spacing="16.0" BorderPane.alignment="CENTER">
+            <children>
+            <HBox alignment="CENTER_RIGHT" spacing="8.0">
+               <children>
+                        <TextField fx:id="searchTextField" promptText="Search" />
+                        <Button mnemonicParsing="false" onAction="#handleClearSearch" text="Clear" />
+                  <Button mnemonicParsing="false" onAction="#handleClearSearch" text="Deep Search" />
+               </children>
+            </HBox>
+                <SplitPane dividerPositions="0.9" orientation="VERTICAL" VBox.vgrow="ALWAYS">
+                    <items>
+                        <AnchorPane minHeight="0.0" minWidth="0.0">
+                            <children>
+                                <TableView fx:id="tableView" AnchorPane.bottomAnchor="-150.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
+                                    <columns>
+                                        <TableColumn fx:id="nameColumn" editable="false" minWidth="200.0" prefWidth="-1.0" text="Name" />
+                                        <TableColumn fx:id="dateColumn" editable="false" prefWidth="75.0" text="Date Modified" />
+                                        <TableColumn fx:id="typeColumn" editable="false" prefWidth="75.0" sortable="false" text="Type" />
+                                    </columns>
+                                </TableView>
+                            </children>
+                        </AnchorPane>
+                        <AnchorPane minHeight="0.0" minWidth="0.0">
+                            <children>
+                                <ListView fx:id="contentListView" prefHeight="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                            </children>
+                        </AnchorPane>
+                    </items>
+                </SplitPane>
+            </children>
+            <BorderPane.margin>
+                <Insets left="16.0" right="16.0" />
+            </BorderPane.margin>
+        </VBox>
+    </center>
+    <left>
+        <VBox prefWidth="200.0" spacing="16.0" BorderPane.alignment="CENTER">
+            <children>
+                <Button fx:id="selectFolderButton" mnemonicParsing="false" onAction="#handleSelectFolderClicked" text="Select Folder" />
+                <TreeView fx:id="fileTreeView" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+            </children>
+        </VBox>
+    </left>
+    <right>
+        <VBox prefWidth="200.0" BorderPane.alignment="CENTER" />
+    </right>
+    <padding>
+        <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+    </padding>
+</BorderPane>
