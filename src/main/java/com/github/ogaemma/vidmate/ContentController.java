@@ -1,6 +1,7 @@
 package com.github.ogaemma.vidmate;
 
 import com.github.ogaemma.vidmate.model.FileDto;
+import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -9,6 +10,7 @@ import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.control.*;
 import javafx.scene.control.Button;
+import javafx.scene.control.MenuItem;
 import javafx.scene.control.TextField;
 import javafx.stage.DirectoryChooser;
 
@@ -56,58 +58,12 @@ public class ContentController {
             filterResult();
         });
 
-        tableFileList = FXCollections.observableArrayList();
+        initTable();
+        initContentListView();
+        initContentFileTree();
+    }
 
-        resizeColumns();
-
-        nameColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().getName())
-        );
-
-        dateColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().dateModified())
-        );
-
-        typeColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(Arrays.stream(cellData.getValue().getPath().split("\\.")).toList().getLast())
-        );
-
-        tableView.setItems(tableFileList);
-        tableView.getSelectionModel().selectedItemProperty().addListener(
-                (obs, oldSelection, newSelection) -> {
-                    if (newSelection != null) {
-                        loadNestedFiles(newSelection);
-                    }
-                }
-        );
-
-        tableView.setRowFactory(tv -> {
-            TableRow<FileDto> row = new TableRow<>();
-
-            row.setOnMouseClicked(event -> {
-                if (event.getClickCount() == 2 && !row.isEmpty()) {
-                    var file = row.getItem(); // NEVER null here
-                    handleSelected(file);
-                }
-            });
-
-            return row;
-        });
-
-        contentListView.setCellFactory(lv -> new ListCell<>() {
-            @Override
-            protected void updateItem(FileDto item, boolean empty) {
-                super.updateItem(item, empty);
-                setText(empty || item == null ? null : item.getName());
-            }
-        });
-
-        contentListView.setOnMouseClicked(event -> {
-            if (event.getClickCount() == 2) {
-                handleSelected(contentListView.getSelectionModel().getSelectedItem());
-            }
-        });
-
+    private void initContentFileTree() {
         fileTreeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         fileTreeView.setCellFactory(tv -> new TreeCell<>() {
             @Override
@@ -134,6 +90,107 @@ public class ContentController {
                     }
                 }
         );
+    }
+
+    private void initContentListView() {
+        contentListView.setCellFactory(lv -> new ListCell<>() {
+            @Override
+            protected void updateItem(FileDto item, boolean empty) {
+                super.updateItem(item, empty);
+                setText(empty || item == null ? null : item.getName());
+            }
+        });
+
+        contentListView.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                handleSelected(contentListView.getSelectionModel().getSelectedItem());
+            }
+        });
+    }
+
+    private void initTable() {
+        tableFileList = FXCollections.observableArrayList();
+
+        resizeColumns();
+
+        nameColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().getName())
+        );
+
+        dateColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(cellData.getValue().dateModified())
+        );
+
+        typeColumn.setCellValueFactory(cellData ->
+                new SimpleStringProperty(Arrays.stream(cellData.getValue().getPath().split("\\.")).toList().getLast())
+        );
+
+        tableView.setItems(tableFileList);
+        tableView.getSelectionModel().selectedItemProperty().addListener(
+                (obs, oldSelection, newSelection) -> {
+                    if (newSelection != null) {
+                        loadNestedFiles(newSelection);
+                    }
+                }
+        );
+
+
+        tableView.setRowFactory(tv -> {
+            TableRow<FileDto> row = new TableRow<>();
+
+            row.setOnMouseClicked(event -> {
+                if (event.getClickCount() == 2 && !row.isEmpty()) {
+                    var file = row.getItem();
+                    handleSelected(file);
+                }
+            });
+
+            var rowMenu = new ContextMenu();
+            var showOpenAction = new MenuItem("Launch");
+            showOpenAction.setOnAction(e -> {
+                FileDto fileDto = row.getItem();
+                if (fileDto != null) {
+                    showInFileManager(new File(fileDto.getPath()));
+                }
+            });
+
+            var showInFinderAction = new MenuItem("Show in finder");
+            showInFinderAction.setOnAction(e -> {
+                FileDto fileDto = row.getItem();
+                if (fileDto != null) {
+                    showInFileManager(new File(fileDto.getPath()));
+                }
+            });
+
+            var showEnclosingFolderAction = getMenuItem(row);
+
+            rowMenu.getItems().addAll(showOpenAction, showInFinderAction, showEnclosingFolderAction);
+            row.contextMenuProperty().bind(
+                    Bindings.when(row.emptyProperty())
+                            .then((ContextMenu) null)
+                            .otherwise(rowMenu)
+            );
+
+            return row;
+        });
+    }
+
+    private MenuItem getMenuItem(TableRow<FileDto> row) {
+        var showEnclosingFolderAction = new MenuItem("Enclosing finder");
+        showEnclosingFolderAction.setOnAction(e -> {
+            FileDto fileDto = row.getItem();
+            if (fileDto == null) {
+                return;
+            }
+
+            var folder = new File(fileDto.getPath()).getParentFile();
+            if (folder == null || folder.getParentFile() == null ) {
+                return;
+            }
+
+            setDirectory(folder.getParentFile());
+        });
+        return showEnclosingFolderAction;
     }
 
     private void resizeColumns() {
@@ -264,6 +321,29 @@ public class ContentController {
             if (Desktop.isDesktopSupported()) {
                 Desktop.getDesktop().open(file);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void showInFileManager(File file) {
+        try {
+            String path = file.getAbsolutePath();
+
+            new ProcessBuilder("open", "-R", path).start();
+            /*String path = file.getAbsolutePath();
+
+            if (isMac()) {
+                new ProcessBuilder("open", "-R", path).start();
+
+            } else if (isWindows()) {
+                new ProcessBuilder("explorer.exe", "/select,", path).start();
+
+            } else {
+                // Linux → open parent folder
+                new ProcessBuilder("xdg-open", file.getParent()).start();
+            }*/
+
         } catch (IOException e) {
             e.printStackTrace();
         }
