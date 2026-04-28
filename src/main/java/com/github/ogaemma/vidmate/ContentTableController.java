@@ -1,10 +1,12 @@
 package com.github.ogaemma.vidmate;
 
 import com.github.ogaemma.vidmate.model.FileDto;
+import javafx.application.Platform;
 import javafx.beans.binding.Bindings;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.concurrent.Task;
 import javafx.event.ActionEvent;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
@@ -17,11 +19,13 @@ import javafx.stage.DirectoryChooser;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
-import java.util.Arrays;
+import java.util.*;
 import java.util.List;
-import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
-public class ContentController {
+public class ContentTableController {
+
     @FXML
     public TextField searchTextField;
 
@@ -46,6 +50,8 @@ public class ContentController {
     @FXML
     private TableColumn<FileDto, String> typeColumn;
 
+    private final ExecutorService executor = Executors.newCachedThreadPool();
+
     File directory;
 
     ObservableList<FileDto> tableFileList;
@@ -61,6 +67,38 @@ public class ContentController {
         initTable();
         initContentListView();
         initContentFileTree();
+    }
+
+    @FXML
+    protected void handleSelectFolderClicked(ActionEvent ae) {
+        var source = (Node) ae.getSource();
+        var stage = source.getScene().getWindow();
+
+        var directoryChooser = new DirectoryChooser();
+        directoryChooser.setTitle("Select folder File");
+
+        var selectedDirectory = directoryChooser.showDialog(stage);
+        setDirectory(selectedDirectory);
+    }
+
+    @FXML
+    protected void handleClearSearch() {
+        searchTextField.clear();
+        filterResult();
+    }
+
+    @FXML
+    protected void handleDeepSearch() {
+        if(directory == null || searchTextField.getText().isEmpty()) return;
+//        searchAsync(directory, searchTextField.getText().toLowerCase());
+        searchStreaming(directory, searchTextField.getText().toLowerCase());
+    }
+
+    @FXML
+    protected void handleNavigateUp() {
+        if(directory == null) return;
+
+        navigateUp(new FileDto(directory));
     }
 
     private void initContentFileTree() {
@@ -178,19 +216,22 @@ public class ContentController {
     private MenuItem getMenuItem(TableRow<FileDto> row) {
         var showEnclosingFolderAction = new MenuItem("Enclosing finder");
         showEnclosingFolderAction.setOnAction(e -> {
-            FileDto fileDto = row.getItem();
-            if (fileDto == null) {
-                return;
-            }
-
-            var folder = new File(fileDto.getPath()).getParentFile();
-            if (folder == null || folder.getParentFile() == null ) {
-                return;
-            }
-
-            setDirectory(folder.getParentFile());
+            navigateUp(row.getItem());
         });
         return showEnclosingFolderAction;
+    }
+
+    private void navigateUp(FileDto fileDto) {
+        if (fileDto == null) {
+            return;
+        }
+
+        var folder = new File(fileDto.getPath()).getParentFile();
+        if (folder == null || folder.getParentFile() == null ) {
+            return;
+        }
+
+        setDirectory(folder.getParentFile());
     }
 
     private void resizeColumns() {
@@ -202,31 +243,154 @@ public class ContentController {
         dateColumn.setMinWidth(100);
     }
 
-    @FXML
-    protected void handleSelectFolderClicked(ActionEvent ae) {
-        var source = (Node) ae.getSource();
-        var stage = source.getScene().getWindow();
+    private Task<List<File>> currentTask;
 
-        var directoryChooser = new DirectoryChooser();
-        directoryChooser.setTitle("Select folder File");
+    private void searchAsync(File root, String query) {
 
-        var selectedDirectory = directoryChooser.showDialog(stage);
-        setDirectory(selectedDirectory);
+        if (currentTask != null && currentTask.isRunning()) {
+            currentTask.cancel();
+        }
+
+        currentTask = new Task<>() {
+            @Override
+            protected List<File> call() {
+                List<File> results = new ArrayList<>();
+                searchRecursiveCancelable(root, query, results);
+                return results;
+            }
+        };
+
+        currentTask.setOnSucceeded(e -> {
+            List<FileDto> result = currentTask.getValue().stream().map(FileDto::new).toList();
+            updateUI(result);
+            /*listView.setItems(FXCollections.observableArrayList(
+                    (List<File>) currentTask.getValue()
+            ));*/
+        });
+
+        executor.submit(currentTask);
     }
 
-    @FXML
-    protected void handleClearSearch() {
-        searchTextField.clear();
-        filterResult();
+    private Task<Void> searchTask;
+
+    private void searchStreaming(File root, String query) {
+
+        if (searchTask != null && searchTask.isRunning()) {
+            searchTask.cancel();
+        }
+
+        updateUI(Collections.emptyList());
+
+        searchTask = new Task<>() {
+            @Override
+            protected Void call() {
+                searchRecursiveStreaming(root, query.toLowerCase(), new ArrayList<>());
+                return null;
+            }
+        };
+
+        executor.submit(searchTask);
     }
 
+    private void searchRecursiveStreaming(File dir, String query, List<FileDto> list) {
+
+        if (searchTask.isCancelled()) return;
+
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+
+            if (searchTask.isCancelled()) return;
+
+            if(file.getName().startsWith(".")){
+                continue;
+            }
+
+            if (file.getName().toLowerCase().contains(query)) {
+
+                // 🔥 push result immediately to UI
+                Platform.runLater(() -> {
+                    var fileDto = new FileDto(file);
+                    list.add(fileDto);
+                    tableFileList.add(fileDto);
+                });
+            }
+
+            if (file.isDirectory()) {
+                searchRecursiveStreaming(file, query, list);
+            }
+        }
+
+        this.files = list;
+
+        Platform.runLater(() -> {
+            if(!tableFileList.isEmpty()) {
+                this.tableView.scrollTo(tableFileList.size() - 1);
+            }
+        });
+    }
+
+    private void searchRecursiveCancelable(File dir, String query, List<File> results) {
+
+        if (currentTask.isCancelled()) return;
+
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+
+            if (currentTask.isCancelled()) return;
+
+            if (file.getName().toLowerCase().contains(query)) {
+                results.add(file);
+            }
+
+            if (file.isDirectory()) {
+                searchRecursiveCancelable(file, query, results);
+            }
+        }
+    }
+
+    private List<File> searchFiles(File root, String query) {
+        List<File> results = new ArrayList<>();
+        searchRecursive(root, query.toLowerCase(), results);
+        return results;
+    }
+
+    private void searchRecursive(File dir, String query, List<File> results) {
+        File[] files = dir.listFiles();
+        if (files == null) return;
+
+        for (File file : files) {
+            if (file.getName().toLowerCase().contains(query)) {
+                results.add(file);
+            }
+
+            if (file.isDirectory()) {
+                searchRecursive(file, query, results);
+            }
+        }
+    }
 
     private void setDirectory(File selectedDirectory) {
+        cancelAllTasks();
+
         directory = selectedDirectory;
         this.files = getFileDtoList(directory);
         filterResult();
         updateTreeView();
         resetSelection();
+    }
+
+    private void cancelAllTasks() {
+        if (currentTask != null && currentTask.isRunning()) {
+            currentTask.cancel();
+        }
+
+        if (searchTask != null && searchTask.isRunning()) {
+            searchTask.cancel();
+        }
     }
 
     private void updateTreeView() {
@@ -279,10 +443,14 @@ public class ContentController {
 
         var result = search.isBlank() ? this.files : this.files.stream().filter(it -> it.getName().toLowerCase().contains(search)).toList();
 
-        tableFileList.clear();
-        tableFileList.addAll(result);
+        updateUI(result);
 
         resizeColumns();
+    }
+
+    private void updateUI(List<FileDto> result) {
+        tableFileList.clear();
+        tableFileList.addAll(result);
     }
 
     private void resetSelection() {
@@ -310,7 +478,7 @@ public class ContentController {
         File selectedFile = new File(fileDto.getPath());
 
         if (selectedFile.isFile()) {
-            openFile(selectedFile);
+            executor.submit(() -> openFile(selectedFile));
         } else if (selectedFile.isDirectory()) {
             setDirectory(selectedFile);
         }

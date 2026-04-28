@@ -1,0 +1,20 @@
+.video-cell {
+    -fx-padding: 12;
+    -fx-background-color: #1e1e2f;
+    -fx-background-radius: 12;
+    -fx-border-color: orange;
+    -fx-border-radius: 12;
+}
+
+.list-cell:selected .video-cell {
+    -fx-background-color: #2a2a3d;
+}
+
+.title {
+    -fx-text-fill: white;
+    -fx-font-size: 16px;
+}
+
+.label {
+    -fx-text-fill: #bbbbbb;
+}

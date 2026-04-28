@@ -37,7 +37,7 @@ public class MainController {
             Tab tab = new Tab(tabName);
 
             FXMLLoader loader = new FXMLLoader(
-                    getClass().getResource("content-view.fxml")
+                    getClass().getResource("content-view-table.fxml")
             );
 
             Parent content = loader.load();

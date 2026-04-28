@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<?import javafx.scene.image.ImageView?>
+<HBox xmlns="http://javafx.com/javafx/17"
+      xmlns:fx="http://javafx.com/fxml"
+      spacing="15"
+      fx:controller="com.github.ogaemma.vidmate.VideoCellController"
+      styleClass="video-cell">
+
+   <ImageView fx:id="thumbnail"
+              fitWidth="100"
+              fitHeight="60"
+              preserveRatio="true"/>
+
+   <VBox spacing="5">
+      <Label fx:id="title" styleClass="title"/>
+
+      <HBox spacing="15">
+         <Label fx:id="duration"/>
+         <Label fx:id="size"/>
+         <Label fx:id="format"/>
+         <Label fx:id="resolution"/>
+      </HBox>
+   </VBox>
+
+   <Region HBox.hgrow="ALWAYS"/>
+
+   <Button fx:id="playButton" text="▶"/>
+   <Button fx:id="folderButton" text="📁"/>
+
+</HBox>

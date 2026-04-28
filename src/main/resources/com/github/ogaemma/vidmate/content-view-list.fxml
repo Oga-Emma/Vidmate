@@ -4,7 +4,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.layout.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.ogaemma.vidmate.ContentController">
+<BorderPane xmlns="http://javafx.com/javafx/17.0.12" xmlns:fx="http://javafx.com/fxml/1" fx:controller="com.github.ogaemma.vidmate.ContentTableController">
     <center>
         <VBox spacing="16.0" BorderPane.alignment="CENTER">
             <children>
@@ -18,15 +18,9 @@
                 <SplitPane dividerPositions="0.9" orientation="VERTICAL" VBox.vgrow="ALWAYS">
                     <items>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
-                            <children>
-                                <TableView fx:id="tableView" AnchorPane.bottomAnchor="-150.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0">
-                                    <columns>
-                                        <TableColumn fx:id="nameColumn" editable="false" minWidth="200.0" prefWidth="-1.0" text="Name" />
-                                        <TableColumn fx:id="dateColumn" editable="false" prefWidth="75.0" text="Date Modified" />
-                                        <TableColumn fx:id="typeColumn" editable="false" prefWidth="75.0" sortable="false" text="Type" />
-                                    </columns>
-                                </TableView>
-                            </children>
+                     <children>
+                        <ListView prefHeight="200.0" prefWidth="200.0" AnchorPane.bottomAnchor="0.0" AnchorPane.leftAnchor="0.0" AnchorPane.rightAnchor="0.0" AnchorPane.topAnchor="0.0" />
+                     </children>
                         </AnchorPane>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
                             <children>
