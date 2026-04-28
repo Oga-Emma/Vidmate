@@ -52,10 +52,13 @@ public class ContentTableController {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    File directory;
+    private File directory;
 
     ObservableList<FileDto> tableFileList;
     List<FileDto> files;
+
+    private TabManager tabManager;
+
 
     @FXML
     private void initialize() {
@@ -192,6 +195,14 @@ public class ContentTableController {
                 }
             });
 
+            var showInNewTabAction = new MenuItem("Show in new tab");
+            showInNewTabAction.setOnAction(e -> {
+                FileDto fileDto = row.getItem();
+                if (fileDto != null) {
+                    tabManager.openNewTab(new File(fileDto.getPath()));
+                }
+            });
+
             var showInFinderAction = new MenuItem("Show in finder");
             showInFinderAction.setOnAction(e -> {
                 FileDto fileDto = row.getItem();
@@ -202,7 +213,7 @@ public class ContentTableController {
 
             var showEnclosingFolderAction = getMenuItem(row);
 
-            rowMenu.getItems().addAll(showOpenAction, showInFinderAction, showEnclosingFolderAction);
+            rowMenu.getItems().addAll(showOpenAction, showInNewTabAction, showInFinderAction, showEnclosingFolderAction);
             row.contextMenuProperty().bind(
                     Bindings.when(row.emptyProperty())
                             .then((ContextMenu) null)
@@ -373,7 +384,7 @@ public class ContentTableController {
         }
     }
 
-    private void setDirectory(File selectedDirectory) {
+    public void setDirectory(File selectedDirectory) {
         cancelAllTasks();
 
         directory = selectedDirectory;
@@ -410,13 +421,11 @@ public class ContentTableController {
         if (parent.isDirectory()) {
             item.getChildren().add(new TreeItem<>());
 
-            File[] children = parent.listFiles();
+            var children = Arrays.stream(Objects.requireNonNull(parent.listFiles())).sorted(Comparator.comparing(File::getName)).toList();
 
-            if (children != null) {
-                for (File child : children) {
-                    if (child.isDirectory()) {
-                        item.getChildren().add(new TreeItem<>(child));
-                    }
+            for (File child : children) {
+                if (child.isDirectory()) {
+                    item.getChildren().add(new TreeItem<>(child));
                 }
             }
             /*if (children != null) {
@@ -515,5 +524,9 @@ public class ContentTableController {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    public void setTabController(TabManager tabManager) {
+        this.tabManager = tabManager;
     }
 }

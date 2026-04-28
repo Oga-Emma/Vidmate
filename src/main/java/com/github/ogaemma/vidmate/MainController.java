@@ -1,14 +1,15 @@
 package com.github.ogaemma.vidmate;
 
+import com.github.ogaemma.vidmate.model.FileDto;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
 import javafx.scene.control.*;
 
-import java.awt.*;
+import java.io.File;
 import java.io.IOException;
 
-public class MainController {
+public class MainController implements TabManager {
     @FXML
     public TabPane mainTabView;
 
@@ -21,17 +22,17 @@ public class MainController {
         addTabButton.setClosable(false);
 
         mainTabView.getTabs().add(addTabButton);
-        loadNewTab(false);
+        loadNewTab(false, null);
 
         addTabButton.setOnSelectionChanged(event -> {
             if (addTabButton.isSelected()) {
-                loadNewTab(true);
+                loadNewTab(true, null);
             }
         });
 
     }
 
-    private void loadNewTab(boolean closable){
+    private void loadNewTab(boolean closable, File file){
         try {
             String tabName = "New Tab " + mainTabView.getTabs().size();
             Tab tab = new Tab(tabName);
@@ -41,14 +42,28 @@ public class MainController {
             );
 
             Parent content = loader.load();
-            tab.setContent(content);
 
+            tab.setContent(content);
             tab.setClosable(closable);
 
             mainTabView.getTabs().add(mainTabView.getTabs().size() - 1, tab);
             mainTabView.getSelectionModel().select(tab);
+
+            var controller = ((ContentTableController) loader.getController());
+            controller.setTabController(this);
+
+            if(file != null && file.isDirectory()){
+                controller.setDirectory(file);
+            }
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void openNewTab(File file) {
+        if(file != null && file.isDirectory()){
+            loadNewTab(true, file);
         }
     }
 }
