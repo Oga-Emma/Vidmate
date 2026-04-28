@@ -227,17 +227,19 @@ public class ContentTableController {
     private MenuItem getMenuItem(TableRow<FileDto> row) {
         var showEnclosingFolderAction = new MenuItem("Enclosing finder");
         showEnclosingFolderAction.setOnAction(e -> {
-            navigateUp(row.getItem());
+            var fileDto = row.getItem();
+
+            if (fileDto == null) {
+                return;
+            }
+
+            navigateUp(new FileDto(new File(fileDto.getPath()).getParentFile()));
         });
         return showEnclosingFolderAction;
     }
 
     private void navigateUp(FileDto fileDto) {
-        if (fileDto == null) {
-            return;
-        }
-
-        var folder = new File(fileDto.getPath()).getParentFile();
+        var folder = new File(fileDto.getPath());
         if (folder == null || folder.getParentFile() == null ) {
             return;
         }
