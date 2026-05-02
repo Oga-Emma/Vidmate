@@ -314,6 +314,8 @@ public class ContentTableController {
 
         var querySet = new HashSet<>(Arrays.stream(query.split(" ")).toList());
 
+        if(querySet.isEmpty()) return;
+
         for (File file : files) {
 
             if (searchTask.isCancelled()) return;
