@@ -92,14 +92,14 @@ public class ContentTableController {
 
     @FXML
     protected void handleDeepSearch() {
-        if(directory == null || searchTextField.getText().isEmpty()) return;
+        if (directory == null || searchTextField.getText().isEmpty()) return;
 //        searchAsync(directory, searchTextField.getText().toLowerCase());
         searchStreaming(directory, searchTextField.getText().toLowerCase());
     }
 
     @FXML
     protected void handleNavigateUp() {
-        if(directory == null) return;
+        if (directory == null) return;
 
         navigateUp(new FileDto(directory));
     }
@@ -240,7 +240,7 @@ public class ContentTableController {
 
     private void navigateUp(FileDto fileDto) {
         var folder = new File(fileDto.getPath());
-        if (folder == null || folder.getParentFile() == null ) {
+        if (folder == null || folder.getParentFile() == null) {
             return;
         }
 
@@ -312,15 +312,17 @@ public class ContentTableController {
         File[] files = dir.listFiles();
         if (files == null) return;
 
+        var querySet = new HashSet<>(Arrays.stream(query.split(" ")).toList());
+
         for (File file : files) {
 
             if (searchTask.isCancelled()) return;
 
-            if(file.getName().startsWith(".")){
+            if (file.getName().startsWith(".")) {
                 continue;
             }
-
-            if (file.getName().toLowerCase().contains(query)) {
+            var set = new HashSet<>(Arrays.stream(file.getName().toLowerCase().replaceAll(" ", ".").split("\\.")).toList());
+            if (set.containsAll(querySet)) {
 
                 // 🔥 push result immediately to UI
                 Platform.runLater(() -> {
@@ -338,7 +340,7 @@ public class ContentTableController {
         this.files = list;
 
         Platform.runLater(() -> {
-            if(!tableFileList.isEmpty()) {
+            if (!tableFileList.isEmpty()) {
                 this.tableView.scrollTo(tableFileList.size() - 1);
             }
         });
@@ -448,7 +450,7 @@ public class ContentTableController {
     }
 
     private void filterResult() {
-        if(this.files == null || this.files.isEmpty()) return;
+        if (this.files == null || this.files.isEmpty()) return;
 
         var search = searchTextField.getText().trim().toLowerCase();
 

@@ -30,7 +30,7 @@ public class MainApplication extends Application {
         stage.setMinHeight(screenBounds.getHeight() * percentage);
 
         stage.setMaximized(true);
-        stage.setResizable(false);
+        stage.setResizable(true);
 
         stage.show();
     }
