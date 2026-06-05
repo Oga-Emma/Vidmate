@@ -1,6 +1,5 @@
 package com.github.ogaemma.vidmate;
 
-import com.github.ogaemma.vidmate.model.FileDto;
 import javafx.fxml.FXML;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Parent;
@@ -62,8 +61,9 @@ public class MainController implements TabManager {
 
     @Override
     public void openNewTab(File file) {
-        if(file != null && file.isDirectory()){
-            loadNewTab(true, file);
+        if(file != null){
+            var folder = file.isDirectory() ? file : file.getParentFile();
+            loadNewTab(true, folder);
         }
     }
 }

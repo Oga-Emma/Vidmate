@@ -297,7 +297,7 @@ public class ContentTableController {
         searchTask = new Task<>() {
             @Override
             protected Void call() {
-                searchRecursiveStreaming(root, query.toLowerCase(), new ArrayList<>());
+                searchRecursiveStreaming(root, query.toLowerCase(), new HashSet<>());
                 return null;
             }
         };
@@ -305,7 +305,7 @@ public class ContentTableController {
         executor.submit(searchTask);
     }
 
-    private void searchRecursiveStreaming(File dir, String query, List<FileDto> list) {
+    private void searchRecursiveStreaming(File dir, String query, Set<FileDto> list) {
 
         if (searchTask.isCancelled()) return;
 
@@ -314,7 +314,7 @@ public class ContentTableController {
 
         var querySet = new HashSet<>(Arrays.stream(query.split(" ")).toList());
 
-        if(querySet.isEmpty()) return;
+        if (querySet.isEmpty()) return;
 
         for (File file : files) {
 
@@ -325,21 +325,18 @@ public class ContentTableController {
             }
             var set = new HashSet<>(Arrays.stream(file.getName().toLowerCase().replaceAll(" ", ".").split("\\.")).toList());
             if (set.containsAll(querySet)) {
-
                 // 🔥 push result immediately to UI
                 Platform.runLater(() -> {
                     var fileDto = new FileDto(file);
                     list.add(fileDto);
                     tableFileList.add(fileDto);
                 });
-            }
-
-            if (file.isDirectory()) {
+            } else if (file.isDirectory()) {
                 searchRecursiveStreaming(file, query, list);
             }
         }
 
-        this.files = list;
+        this.files = list.stream().toList();
 
         Platform.runLater(() -> {
             if (!tableFileList.isEmpty()) {
@@ -391,9 +388,12 @@ public class ContentTableController {
     }
 
     public void setDirectory(File selectedDirectory) {
-        cancelAllTasks();
-
         directory = selectedDirectory;
+
+        if (Objects.isNull(directory)) return;
+        ;
+
+        cancelAllTasks();
         this.files = getFileDtoList(directory);
         filterResult();
         updateTreeView();
