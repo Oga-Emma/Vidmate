@@ -19,10 +19,16 @@ import javafx.stage.DirectoryChooser;
 import java.awt.*;
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.*;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 public class ContentTableController {
 
@@ -30,10 +36,13 @@ public class ContentTableController {
     public TextField searchTextField;
 
     @FXML
-    public Button selectFolderButton;
+    public Button refreshDrivesButton;
 
     @FXML
-    private TreeView<File> fileTreeView;
+    private ListView<File> driveListView;
+
+/*    @FXML
+    private TreeView<File> fileTreeView;*/
 
     @FXML
     private ListView<FileDto> contentListView;
@@ -52,7 +61,7 @@ public class ContentTableController {
 
     private final ExecutorService executor = Executors.newCachedThreadPool();
 
-    private File directory;
+    private Map<File, Boolean> directoriesMap = new HashMap<>();
 
     ObservableList<FileDto> tableFileList;
     List<FileDto> files;
@@ -67,21 +76,109 @@ public class ContentTableController {
             filterResult();
         });
 
+       /* selectFolderButton.setOnAction((e) -> {
+            var selectedDirectory = selectFolder(e);
+            setSelectedDirectory(List.of(selectedDirectory));
+        });*/
+
+        refreshDrivesButton.setOnAction((e) -> {
+           loadExternalDrives();
+        });
+
+        if(directoriesMap.isEmpty()){
+            loadExternalDrives();
+        }
+        initExternalDrives();
         initTable();
         initContentListView();
-        initContentFileTree();
+//        initContentFileTree();
     }
 
-    @FXML
-    protected void handleSelectFolderClicked(ActionEvent ae) {
+    private Set<File> getSelectedDirectories(){
+        return directoriesMap.entrySet().stream().filter(Map.Entry::getValue)
+                .collect(Collectors.toMap(Map.Entry::getKey, t -> true))
+                .keySet();
+    }
+
+    private void initExternalDrives(){
+        ObservableList<File> drives = FXCollections.observableArrayList();
+        drives.addAll(getSelectedDirectories());
+
+        driveListView.setItems(drives);
+
+        // Display only the drive name instead of the full path
+        driveListView.setCellFactory(list -> new javafx.scene.control.ListCell<>() {
+            @Override
+            protected void updateItem(File file, boolean empty) {
+                super.updateItem(file, empty);
+
+                if (empty || file == null) {
+                    setText(null);
+                } else {
+                    setText(file.getName());
+                }
+            }
+        });
+    }
+
+    private void loadExternalDrives() {
+        Path volumes = Paths.get("/Volumes");
+
+        try (Stream<Path> paths = Files.list(volumes)) {
+            paths
+                    .filter(Files::isDirectory)
+                    .filter(this::isExternalDrive)
+                    .forEach(it -> directoriesMap.put(it.toFile(), isExternalDrive(it)));
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private boolean isExternalDrive(Path volume) {
+        try {
+            Process process = new ProcessBuilder(
+                    "diskutil",
+                    "info",
+                    "-plist",
+                    volume.toString()
+            )
+                    .redirectErrorStream(true)
+                    .start();
+
+            String plist = new String(
+                    process.getInputStream().readAllBytes(),
+                    java.nio.charset.StandardCharsets.UTF_8
+            );
+
+            int exitCode = process.waitFor();
+
+            if (exitCode != 0) {
+                return false;
+            }
+
+            // Look for the Internal key in the plist
+            var pattern = Pattern.compile(
+                    "<key>Internal</key>\\s*<true\\s*/>"
+            );
+
+            return !pattern.matcher(plist).find();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
+    protected File selectFolder(ActionEvent ae) {
         var source = (Node) ae.getSource();
         var stage = source.getScene().getWindow();
 
         var directoryChooser = new DirectoryChooser();
         directoryChooser.setTitle("Select folder File");
 
-        var selectedDirectory = directoryChooser.showDialog(stage);
-        setDirectory(selectedDirectory);
+        return directoryChooser.showDialog(stage);
     }
 
     @FXML
@@ -92,19 +189,31 @@ public class ContentTableController {
 
     @FXML
     protected void handleDeepSearch() {
-        if (directory == null || searchTextField.getText().isEmpty()) return;
+        if (getSelectedDirectories().isEmpty() || searchTextField.getText().isEmpty()) return;
+        performSearchDeepSearch(searchTextField.getText());
+    }
+
+    @FXML
+    protected void handleDeepSearchNewTab() {
+        if (getSelectedDirectories().isEmpty() || searchTextField.getText().isEmpty()) return;
+        tabManager.openNewDeepSearchTab(getSelectedDirectories().stream().toList(), searchTextField.getText());
+    }
+
+    protected void performSearchDeepSearch(String text) {
+        searchTextField.setText(text);
+
 //        searchAsync(directory, searchTextField.getText().toLowerCase());
-        searchStreaming(directory, searchTextField.getText().toLowerCase());
+        searchStreaming(getSelectedDirectories().stream().toList(), searchTextField.getText().toLowerCase());
     }
 
     @FXML
     protected void handleNavigateUp() {
-        if (directory == null) return;
+        if (getSelectedDirectories().isEmpty()) return;
 
-        navigateUp(new FileDto(directory));
+        navigateUp(new FileDto(getSelectedDirectories().stream().toList().getFirst()));
     }
 
-    private void initContentFileTree() {
+    /*private void initContentFileTree() {
         fileTreeView.getSelectionModel().setSelectionMode(SelectionMode.SINGLE);
         fileTreeView.setCellFactory(tv -> new TreeCell<>() {
             @Override
@@ -124,14 +233,14 @@ public class ContentTableController {
                     if (newVal != null) {
                         File folder = newVal.getValue();
                         if (folder.isDirectory()) {
-                            setDirectory(folder);
+                            setSelectedDirectory(List.of(folder));
                         }
 
                         fileTreeView.getSelectionModel().select(newVal);
                     }
                 }
         );
-    }
+    }*/
 
     private void initContentListView() {
         contentListView.setCellFactory(lv -> new ListCell<>() {
@@ -144,7 +253,7 @@ public class ContentTableController {
 
         contentListView.setOnMouseClicked(event -> {
             if (event.getClickCount() == 2) {
-                handleSelected(contentListView.getSelectionModel().getSelectedItem());
+                handleSelectedFile(contentListView.getSelectionModel().getSelectedItem());
             }
         });
     }
@@ -159,7 +268,7 @@ public class ContentTableController {
         );
 
         dateColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().dateModified())
+                new SimpleStringProperty(cellData.getValue().getDateModified())
         );
 
         typeColumn.setCellValueFactory(cellData ->
@@ -182,7 +291,7 @@ public class ContentTableController {
             row.setOnMouseClicked(event -> {
                 if (event.getClickCount() == 2 && !row.isEmpty()) {
                     var file = row.getItem();
-                    handleSelected(file);
+                    handleSelectedFile(file);
                 }
             });
 
@@ -198,9 +307,7 @@ public class ContentTableController {
             var showInNewTabAction = new MenuItem("Show in new tab");
             showInNewTabAction.setOnAction(e -> {
                 FileDto fileDto = row.getItem();
-                if (fileDto != null) {
-                    tabManager.openNewTab(new File(fileDto.getPath()));
-                }
+                launchInNewTab(fileDto);
             });
 
             var showInFinderAction = new MenuItem("Show in finder");
@@ -224,6 +331,12 @@ public class ContentTableController {
         });
     }
 
+    private void launchInNewTab(FileDto fileDto) {
+        if (fileDto != null) {
+            tabManager.openNewTab(new File(fileDto.getPath()));
+        }
+    }
+
     private MenuItem getMenuItem(TableRow<FileDto> row) {
         var showEnclosingFolderAction = new MenuItem("Enclosing finder");
         showEnclosingFolderAction.setOnAction(e -> {
@@ -244,7 +357,7 @@ public class ContentTableController {
             return;
         }
 
-        setDirectory(folder.getParentFile());
+        setSelectedDirectory(List.of(folder.getParentFile()));
     }
 
     private void resizeColumns() {
@@ -286,7 +399,7 @@ public class ContentTableController {
 
     private Task<Void> searchTask;
 
-    private void searchStreaming(File root, String query) {
+    private void searchStreaming(List<File> root, String query) {
 
         if (searchTask != null && searchTask.isRunning()) {
             searchTask.cancel();
@@ -305,12 +418,12 @@ public class ContentTableController {
         executor.submit(searchTask);
     }
 
-    private void searchRecursiveStreaming(File dir, String query, Set<FileDto> list) {
+    private void searchRecursiveStreaming(List<File> dirs, String query, Set<FileDto> list) {
 
         if (searchTask.isCancelled()) return;
 
-        File[] files = dir.listFiles();
-        if (files == null) return;
+        var files = dirs.stream().flatMap(it -> Arrays.stream(Objects.requireNonNull(it.listFiles())).toList().stream()).toList();
+        if (files.isEmpty()) return;
 
         var querySet = new HashSet<>(Arrays.stream(query.split(" ")).toList());
 
@@ -323,16 +436,18 @@ public class ContentTableController {
             if (file.getName().startsWith(".")) {
                 continue;
             }
-            var set = new HashSet<>(Arrays.stream(file.getName().toLowerCase().replaceAll(" ", ".").split("\\.")).toList());
-            if (set.containsAll(querySet)) {
+//            var set = new HashSet<>(Arrays.stream(file.getName().toLowerCase().replaceAll(" ", ".").split("\\.")).toList());
+            var name = file.getName().toLowerCase().replace(" ", "").replaceAll("\\.", "");
+//            if (set.containsAll(querySet)) {
+            if (querySet.stream().allMatch(name::contains)) {
                 // 🔥 push result immediately to UI
                 Platform.runLater(() -> {
-                    var fileDto = new FileDto(file);
+                    var fileDto = new FileDto(file, true);
                     list.add(fileDto);
                     tableFileList.add(fileDto);
                 });
             } else if (file.isDirectory()) {
-                searchRecursiveStreaming(file, query, list);
+                searchRecursiveStreaming(List.of(file), query, list);
             }
         }
 
@@ -358,6 +473,7 @@ public class ContentTableController {
 
             if (file.getName().toLowerCase().contains(query)) {
                 results.add(file);
+                continue;
             }
 
             if (file.isDirectory()) {
@@ -379,6 +495,7 @@ public class ContentTableController {
         for (File file : files) {
             if (file.getName().toLowerCase().contains(query)) {
                 results.add(file);
+                continue;
             }
 
             if (file.isDirectory()) {
@@ -387,16 +504,18 @@ public class ContentTableController {
         }
     }
 
-    public void setDirectory(File selectedDirectory) {
-        directory = selectedDirectory;
+    public void setSelectedDirectory(List<File> selectedDirectories) {
 
-        if (Objects.isNull(directory)) return;
-        ;
+        if (Objects.isNull(selectedDirectories) || selectedDirectories.isEmpty()) return;
+
+        selectedDirectories.stream().forEach(it -> {
+            directoriesMap.put(it, true);
+        });
 
         cancelAllTasks();
-        this.files = getFileDtoList(directory);
+        this.files = getFileDtoList(getSelectedDirectories().stream().toList());
         filterResult();
-        updateTreeView();
+//        updateTreeView();
         resetSelection();
     }
 
@@ -411,14 +530,16 @@ public class ContentTableController {
     }
 
     private void updateTreeView() {
-        File parent = directory.getParentFile();
+/*        if(directories.isEmpty()) return;
+
+        File parent = directories.stream().toList().getFirst().getParentFile();
 
         if (parent == null) return;
 
         TreeItem<File> rootItem = createNode(parent);
         rootItem.setExpanded(true);
 
-        fileTreeView.setRoot(rootItem);
+        fileTreeView.setRoot(rootItem);*/
     }
 
     private TreeItem<File> createNode(File parent) {
@@ -446,8 +567,10 @@ public class ContentTableController {
         return item;
     }
 
-    private List<FileDto> getFileDtoList(File directory) {
-        var result = Arrays.stream(Objects.requireNonNull(directory.listFiles())).filter(it -> !it.getName().startsWith("."));
+    private List<FileDto> getFileDtoList(List<File> directoryList) {
+        var result = directoryList.stream().flatMap((e) -> Arrays.stream(Objects.requireNonNull(e.listFiles())))
+                .filter(it -> !it.getName().startsWith("."));
+
         return result.map(FileDto::new).toList();
     }
 
@@ -479,7 +602,7 @@ public class ContentTableController {
             File[] nested = file.listFiles();
 
             if (nested != null) {
-                contentListView.setItems(FXCollections.observableArrayList(getFileDtoList(file)));
+                contentListView.setItems(FXCollections.observableArrayList(getFileDtoList(List.of(file))));
             } else {
                 contentListView.setItems(FXCollections.emptyObservableList());
             }
@@ -489,13 +612,17 @@ public class ContentTableController {
         }
     }
 
-    private void handleSelected(FileDto fileDto) {
+    private void handleSelectedFile(FileDto fileDto) {
         File selectedFile = new File(fileDto.getPath());
 
         if (selectedFile.isFile()) {
             executor.submit(() -> openFile(selectedFile));
         } else if (selectedFile.isDirectory()) {
-            setDirectory(selectedFile);
+            if (fileDto.isFromSearch()) {
+                launchInNewTab(fileDto);
+            } else {
+                setSelectedDirectory(List.of(selectedFile));
+            }
         }
     }
 

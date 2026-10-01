@@ -8,18 +8,19 @@
     <center>
         <VBox spacing="16.0" BorderPane.alignment="CENTER">
             <children>
-            <HBox>
-               <children>
-                  <Button mnemonicParsing="false" onAction="#handleNavigateUp" text="Navigate Up" />
-                  <HBox alignment="CENTER_RIGHT" spacing="8.0" HBox.hgrow="ALWAYS">
-                     <children>
-                              <TextField fx:id="searchTextField" promptText="Search" />
-                              <Button mnemonicParsing="false" onAction="#handleClearSearch" text="Clear" />
-                        <Button mnemonicParsing="false" onAction="#handleDeepSearch" text="Deep Search" />
-                     </children>
-                  </HBox>
-               </children>
-            </HBox>
+                <HBox>
+                    <children>
+                        <Button mnemonicParsing="false" onAction="#handleNavigateUp" text="Navigate Up" />
+                        <HBox alignment="CENTER_RIGHT" spacing="8.0" HBox.hgrow="ALWAYS">
+                            <children>
+                                <TextField fx:id="searchTextField" promptText="Search" />
+                                <Button mnemonicParsing="false" onAction="#handleClearSearch" text="Clear" />
+                                <Button mnemonicParsing="false" onAction="#handleDeepSearch" text="Deep Search" />
+                                <Button mnemonicParsing="false" onAction="#handleDeepSearchNewTab" text="Deep Search New Tab" />
+                            </children>
+                        </HBox>
+                    </children>
+                </HBox>
                 <SplitPane dividerPositions="0.9" orientation="VERTICAL" VBox.vgrow="ALWAYS">
                     <items>
                         <AnchorPane minHeight="0.0" minWidth="0.0">
@@ -49,8 +50,15 @@
     <left>
         <VBox prefWidth="200.0" spacing="16.0" BorderPane.alignment="CENTER">
             <children>
-                <Button fx:id="selectFolderButton" mnemonicParsing="false" onAction="#handleSelectFolderClicked" text="Select Folder" />
-                <TreeView fx:id="fileTreeView" prefHeight="200.0" prefWidth="200.0" VBox.vgrow="ALWAYS" />
+                <Button fx:id="refreshDrivesButton" mnemonicParsing="false" text="Refresh" />
+            <ListView fx:id="driveListView">
+               <VBox.margin>
+                  <Insets />
+               </VBox.margin>
+               <padding>
+                  <Insets bottom="8.0" left="8.0" right="8.0" top="8.0" />
+               </padding>
+            </ListView>
             </children>
         </VBox>
     </left>

@@ -10,37 +10,40 @@ import java.util.Objects;
 
 public class FileDto {
     private final String fileName;
-    private final SimpleStringProperty name;
-    private final SimpleStringProperty path;
-    private final SimpleStringProperty dateModified;
+    private final boolean fromSearch;
+    private final String name;
+    private final String path;
+    private final String dateModified;
 
     public FileDto(File file) {
-        this.name = new SimpleStringProperty(file.getName());
-        this.path = new SimpleStringProperty(file.getAbsolutePath());
+       this(file, false);
+    }
 
-        String formatted = Instant.ofEpochMilli(file.lastModified())
+    public FileDto(File file, boolean fromSearch) {
+        this.fromSearch = fromSearch;
+        this.name = file.getName();
+        this.path = file.getAbsolutePath();
+
+        this.dateModified = Instant.ofEpochMilli(file.lastModified())
                 .atZone(ZoneId.systemDefault())
                 .toLocalDateTime()
                 .format(FORMATTER);
-        this.dateModified = new SimpleStringProperty(formatted);
 
-        var n = name.get().toLowerCase();
-
-        if(n.contains(".xxx")){
-            this.fileName = n.substring(0, n.indexOf(".xxx"));
-        }else if(n.contains(".prt")){
-            this.fileName = n.substring(0, n.indexOf(".prt"));
-        } else if (n.contains(".")) {
-            this.fileName = n.substring(0, n.lastIndexOf("."));
+        if(name.contains(".xxx")){
+            this.fileName = name.substring(0, name.indexOf(".xxx"));
+        }else if(name.contains(".prt")){
+            this.fileName = name.substring(0, name.indexOf(".prt"));
+        } else if (name.contains(".")) {
+            this.fileName = name.substring(0, name.lastIndexOf("."));
         }else {
-            this.fileName = n;
+            this.fileName = name;
         }
     }
 
-    public String getName() { return name.get(); }
-    public String getPath() { return path.get(); }
-    public String dateModified() { return dateModified.get(); }
-
+    public String getName() { return name; }
+    public String getPath() { return path; }
+    public String getDateModified() { return dateModified; }
+    public boolean isFromSearch() {return fromSearch;}
 
     private static final DateTimeFormatter FORMATTER =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");

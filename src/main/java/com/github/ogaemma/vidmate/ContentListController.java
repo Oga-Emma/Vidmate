@@ -118,7 +118,7 @@ public class ContentListController {
         );
 
         dateColumn.setCellValueFactory(cellData ->
-                new SimpleStringProperty(cellData.getValue().dateModified())
+                new SimpleStringProperty(cellData.getValue().getDateModified())
         );
 
         typeColumn.setCellValueFactory(cellData ->
